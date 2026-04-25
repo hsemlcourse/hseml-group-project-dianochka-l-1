@@ -68,7 +68,7 @@
 
 ```bash
 # 1. Клонировать репозиторий
-git clone <url>
+git clone <https://github.com/hsemlcourse/hseml-group-project-dianochka-l-1>
 cd hseml-group-project-dianochka-l-1
 
 # 2. Создать и активировать окружение
