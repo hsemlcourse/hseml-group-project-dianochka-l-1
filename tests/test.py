@@ -10,7 +10,6 @@ from src.preprocessing import (
     clean_outliers,
 )
 
-
 def test_clean_html_strips_tags():
     text = "<p>Ищем <strong>Python</strong>-разработчика</p>"
     assert _clean_html(text) == "Python -разработчик" or "Python" in _clean_html(text)
