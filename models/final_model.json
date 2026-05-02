@@ -1,0 +1,38 @@
+{
+  "model_name": "Ridge (baseline check)",
+  "seed": 42,
+  "target": "salary_mid_rub",
+  "target_transform": "log1p / expm1",
+  "feature_groups": {
+    "num_cols": [
+      "key_skills_count"
+    ],
+    "cat_cols": [
+      "area_id",
+      "area_name",
+      "employer_name",
+      "employer_id",
+      "experience",
+      "experience_name"
+    ],
+    "text_col": [
+      "name",
+      "description"
+    ]
+  },
+  "split": {
+    "train": 10877,
+    "val": 2331,
+    "test": 2331
+  },
+  "val_metrics": {
+    "MAE": 24694.505,
+    "RMSE": 42987.115,
+    "R2": 0.577
+  },
+  "test_metrics": {
+    "MAE": 26872.429,
+    "RMSE": 66387.536,
+    "R2": 0.374
+  }
+}

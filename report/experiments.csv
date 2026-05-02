@@ -1,0 +1,5 @@
+model,fit_sec,train_MAE,val_MAE,val_RMSE,val_R2,notes
+Ridge (baseline check),1.2,14982.0,24695.0,42987.0,0.577,"Ridge на тех же фичах, что и в CP1... Нужен для сверки"
+RandomForest + RandomizedCV,329.3,12694.0,26734.0,48167.0,0.469,"5 итераций × 3 фолда, scoring=neg_MAE на log-шкале"
+Ridge + TruncatedSVD(200),2.4,27801.0,28817.0,50780.0,0.409,
+LinearSVR + GridSearchCV,27.6,4195.0,29019.0,48548.0,0.46,
