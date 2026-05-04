@@ -1,31 +1,21 @@
 [
   {
-    "model": "Ridge + TruncatedSVD(200)",
-    "fit_sec": 2.4,
-    "train_MAE": 27801.0,
-    "val_MAE": 28817.0,
-    "val_RMSE": 50780.0,
-    "val_R2": 0.409,
-    "best_params": {},
-    "notes": ""
-  },
-  {
     "model": "Ridge (baseline check)",
-    "fit_sec": 1.2,
-    "train_MAE": 14982.0,
-    "val_MAE": 24695.0,
-    "val_RMSE": 42987.0,
-    "val_R2": 0.577,
+    "fit_sec": 1.1,
+    "train_MAE": 14886.0,
+    "val_MAE": 24640.0,
+    "val_RMSE": 42832.0,
+    "val_R2": 0.58,
     "best_params": {},
     "notes": "Ridge на тех же фичах, что и в CP1... Нужен для сверки"
   },
   {
     "model": "RandomForest + RandomizedCV",
-    "fit_sec": 329.3,
-    "train_MAE": 12694.0,
-    "val_MAE": 26734.0,
-    "val_RMSE": 48167.0,
-    "val_R2": 0.469,
+    "fit_sec": 326.4,
+    "train_MAE": 12594.0,
+    "val_MAE": 26733.0,
+    "val_RMSE": 48050.0,
+    "val_R2": 0.471,
     "best_params": {
       "max_depth": null,
       "max_features": 0.5,
@@ -36,15 +26,71 @@
   },
   {
     "model": "LinearSVR + GridSearchCV",
-    "fit_sec": 27.6,
-    "train_MAE": 4195.0,
-    "val_MAE": 29019.0,
-    "val_RMSE": 48548.0,
-    "val_R2": 0.46,
+    "fit_sec": 26.1,
+    "train_MAE": 18219.0,
+    "val_MAE": 24844.0,
+    "val_RMSE": 45364.0,
+    "val_R2": 0.529,
     "best_params": {
       "C": 0.1,
-      "epsilon": 0.0
+      "epsilon": 0.05
     },
     "notes": ""
+  },
+  {
+    "model": "Ridge + TruncatedSVD(200)",
+    "fit_sec": 2.6,
+    "train_MAE": 27790.0,
+    "val_MAE": 28796.0,
+    "val_RMSE": 50665.0,
+    "val_R2": 0.412,
+    "best_params": {},
+    "notes": ""
+  },
+  {
+    "model": "CatBoost (native)",
+    "fit_sec": 131.9,
+    "train_MAE": 15956.0,
+    "val_MAE": 25708.0,
+    "val_RMSE": 47143.0,
+    "val_R2": 0.491,
+    "best_params": {
+      "depth": 4,
+      "learning_rate": 0.03,
+      "l2_leaf_reg": 10.0,
+      "bagging_temperature": 1.0,
+      "loss_function": "MAE",
+      "iterations_used": 4993
+    },
+    "notes": "категории и тексты нативно, MAE loss, Bayesian bootstrap, early stopping на val"
+  },
+  {
+    "model": "RandomForest + RandomizedCV",
+    "fit_sec": 91.6,
+    "train_MAE": 16332.0,
+    "val_MAE": 28256.0,
+    "val_RMSE": 50555.0,
+    "val_R2": 0.415,
+    "best_params": {
+      "min_samples_leaf": 3,
+      "max_features": 0.5,
+      "max_depth": 25
+    },
+    "notes": "Использовался отдельный препроцессор с урезанным tf-idf"
+  },
+  {
+    "model": "RandomForest + RandomizedCV",
+    "fit_sec": 93.3,
+    "train_MAE": 10496.0,
+    "val_MAE": 26775.0,
+    "val_RMSE": 48047.0,
+    "val_R2": 0.471,
+    "best_params": {
+      "min_samples_split": 2,
+      "min_samples_leaf": 1,
+      "max_features": 0.3,
+      "max_depth": null
+    },
+    "notes": "5 итераций на 3 фолда, scoring=neg_MAE на log-шкале"
   }
 ]
