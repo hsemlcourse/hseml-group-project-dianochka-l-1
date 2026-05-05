@@ -1,5 +1,5 @@
 {
-  "model_name": "Ridge (baseline check)",
+  "model_name": "Ridge (new data)",
   "seed": 42,
   "target": "salary_mid_rub",
   "target_transform": "log1p / expm1",

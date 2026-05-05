@@ -1,5 +1,5 @@
 """
-Парсер вакансий с hh.ru через официальный API.
+Парсер вакансий с hh.ru через официальный API
 
 Документация: https://api.hh.ru/openapi/redoc
 Справочник ролей: https://api.hh.ru/professional_roles
@@ -69,7 +69,7 @@ TARGET_CATEGORIES = [
 
 @dataclass
 class ParserConfig:
-    """Конфигурация парсера.
+    """Конфигурация парсера
 
     Attributes:
         user_agent: обязательный заголовок с контактом разработчика
@@ -89,9 +89,8 @@ class ParserConfig:
 
 
 def fetch_access_token(client_id: str, client_secret: str, user_agent: str) -> str:
-    """Получает application access_token по client_credentials grant.
-
-    Подходит для чтения публичных вакансий без интерактивной авторизации.
+    """Получает application access_token по client_credentials grant
+    Подходит для чтения публичных вакансий без интерактивной авторизации
     """
     response = requests.post(
         HH_TOKEN_ENDPOINT,
@@ -146,8 +145,7 @@ def _fetch_page(session: requests.Session, params: dict[str, Any]) -> dict[str, 
 
 
 def fetch_professional_roles(session: requests.Session) -> dict[str, list[str]]:
-    """Загружает справочник профессиональных ролей hh.ru.
-
+    """Загружает справочник профессиональных ролей hh.ru
     Returns:
         {название_категории: [role_id, role_id, ...]}
     """
@@ -169,7 +167,7 @@ def _iter_query(
     base_params: dict[str, Any],
     limit: int,
 ) -> Iterator[dict[str, Any]]:
-    """Итерируется по страницам выдачи, пока не наберёт limit или не кончатся страницы."""
+    """Итерируется по страницам выдачи, пока не наберёт limit или не кончатся страницы"""
     collected = 0
     first_page = _fetch_page(session, {**base_params, "page": 0, "per_page": MAX_PER_PAGE})
     total_found = first_page.get("found", 0)
@@ -200,7 +198,7 @@ def _iter_query(
 def fetch_balanced_vacancy_ids(
     session: requests.Session, config: ParserConfig
 ) -> list[str]:
-    """Собирает уникальные ID вакансий, балансируя по крупным категориям hh.ru."""
+    """Собирает уникальные ID вакансий, балансируя по крупным категориям hh.ru"""
     all_categories = fetch_professional_roles(session)
 
     ids: list[str] = []
@@ -250,7 +248,6 @@ def fetch_vacancy_details(
     raw_dir: Path,
 ) -> list[dict[str, Any]]:
     """Качает детальные карточки вакансий и пишет батчи на диск.
-
     Поддерживает докачку: если в raw_dir уже есть батчи с прошлого прогона,
     их вакансии загружаются и пропускаются при повторном скачивании.
     На сетевых ошибках делает несколько повторов с экспоненциальной паузой,
@@ -301,8 +298,7 @@ def _fetch_vacancy_with_retry(
     vacancy_id: str,
     max_attempts: int = 5,
 ) -> dict[str, Any] | None:
-    """Качает одну карточку с ретраями на сетевые ошибки.
-
+    """Качает одну карточку с ретраями на сетевые ошибки
     Возвращает None, если вакансия 404 или все попытки исчерпаны.
     """
     for attempt in range(1, max_attempts + 1):
@@ -334,7 +330,7 @@ def _fetch_vacancy_with_retry(
 
 
 def _load_existing_batches(raw_dir: Path) -> dict[str, dict[str, Any]]:
-    """Читает все vacancies_batch_*.json и возвращает {id: vacancy}."""
+    """Читает все vacancies_batch_*.json и возвращает {id: vacancy}"""
     result: dict[str, dict[str, Any]] = {}
     if not raw_dir.exists():
         return result
@@ -355,7 +351,7 @@ def _load_existing_batches(raw_dir: Path) -> dict[str, dict[str, Any]]:
 
 
 def _next_batch_index(raw_dir: Path) -> int:
-    """Возвращает номер для следующего батча."""
+    """Возвращает номер для следующего батча"""
     if not raw_dir.exists():
         return 0
     existing = sorted(raw_dir.glob("vacancies_batch_*.json"))
@@ -376,7 +372,7 @@ def _save_batch(batch: list[dict[str, Any]], raw_dir: Path, idx: int) -> None:
 
 
 def run_parser(config: ParserConfig) -> Path:
-    """Полный цикл: собрать ID → скачать детали → сохранить vacancies_all.json."""
+    """Полный цикл: собрать ID → скачать детали → сохранить vacancies_all.json"""
     logger.info(
         "Старт парсинга. Регион=%s, лимит на категорию=%d, only_with_salary=%s",
         config.area, config.per_category_limit, config.only_with_salary,

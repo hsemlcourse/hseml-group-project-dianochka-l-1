@@ -1,6 +1,6 @@
 [
   {
-    "model": "Ridge (baseline check)",
+    "model": "Ridge (new data)",
     "fit_sec": 1.1,
     "train_MAE": 14886.0,
     "val_MAE": 24640.0,
@@ -11,22 +11,22 @@
   },
   {
     "model": "RandomForest + RandomizedCV",
-    "fit_sec": 326.4,
-    "train_MAE": 12594.0,
-    "val_MAE": 26733.0,
-    "val_RMSE": 48050.0,
+    "fit_sec": 97.9,
+    "train_MAE": 10496.0,
+    "val_MAE": 26775.0,
+    "val_RMSE": 48047.0,
     "val_R2": 0.471,
     "best_params": {
-      "max_depth": null,
-      "max_features": 0.5,
-      "min_samples_leaf": 3,
-      "n_estimators": 414
+      "min_samples_split": 2,
+      "min_samples_leaf": 1,
+      "max_features": 0.3,
+      "max_depth": null
     },
-    "notes": "5 итераций × 3 фолда, scoring=neg_MAE на log-шкале"
+    "notes": "5 итераций на 3 фолда, scoring=neg_MAE на log-шкале"
   },
   {
     "model": "LinearSVR + GridSearchCV",
-    "fit_sec": 26.1,
+    "fit_sec": 26.3,
     "train_MAE": 18219.0,
     "val_MAE": 24844.0,
     "val_RMSE": 45364.0,
@@ -38,18 +38,8 @@
     "notes": ""
   },
   {
-    "model": "Ridge + TruncatedSVD(200)",
-    "fit_sec": 2.6,
-    "train_MAE": 27790.0,
-    "val_MAE": 28796.0,
-    "val_RMSE": 50665.0,
-    "val_R2": 0.412,
-    "best_params": {},
-    "notes": ""
-  },
-  {
     "model": "CatBoost (native)",
-    "fit_sec": 131.9,
+    "fit_sec": 133.9,
     "train_MAE": 15956.0,
     "val_MAE": 25708.0,
     "val_RMSE": 47143.0,
@@ -65,32 +55,13 @@
     "notes": "категории и тексты нативно, MAE loss, Bayesian bootstrap, early stopping на val"
   },
   {
-    "model": "RandomForest + RandomizedCV",
-    "fit_sec": 91.6,
-    "train_MAE": 16332.0,
-    "val_MAE": 28256.0,
-    "val_RMSE": 50555.0,
-    "val_R2": 0.415,
-    "best_params": {
-      "min_samples_leaf": 3,
-      "max_features": 0.5,
-      "max_depth": 25
-    },
-    "notes": "Использовался отдельный препроцессор с урезанным tf-idf"
-  },
-  {
-    "model": "RandomForest + RandomizedCV",
-    "fit_sec": 93.3,
-    "train_MAE": 10496.0,
-    "val_MAE": 26775.0,
-    "val_RMSE": 48047.0,
-    "val_R2": 0.471,
-    "best_params": {
-      "min_samples_split": 2,
-      "min_samples_leaf": 1,
-      "max_features": 0.3,
-      "max_depth": null
-    },
-    "notes": "5 итераций на 3 фолда, scoring=neg_MAE на log-шкале"
+    "model": "Ridge + TruncatedSVD(200)",
+    "fit_sec": 5.3,
+    "train_MAE": 25189.0,
+    "val_MAE": 26799.0,
+    "val_RMSE": 47447.0,
+    "val_R2": 0.484,
+    "best_params": {},
+    "notes": ""
   }
 ]

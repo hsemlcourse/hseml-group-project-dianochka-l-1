@@ -25,8 +25,6 @@
 - ноутбуки с EDA и baseline-моделью (`notebooks/01_eda.ipynb`, `notebooks/02_baseline.ipynb`);
 - базовые тесты на этапы предобработки (`tests/test.py`).
 
-Для этапа CP1 стоит посмотреть ноутбуки 01_eda и 02_baseline
-
 **Задача:** Регрессия
 
 **Датасет:** Парсинг HH.ru
@@ -47,15 +45,14 @@
 ├── notebooks
 │   ├── 01_eda.ipynb            # EDA
 │   ├── 02_baseline.ipynb       # Baseline-модель
-│   └── 03_experiments.ipynb    # Эксперименты и ablation study
+│   └── 03_experiments.ipynb    # Эксперименты
 ├── presentation                # Презентация для защиты
 ├── report
 │   ├── images                  # Изображения для отчёта
 │   └── report.md               # Финальный отчёт
 ├── src
-│   ├── preprocessing.py        # Предобработка данных для датасета с API hh.ru
-|   ├── preprocessing_data.py   # Предобработка данных для скачанного датасета
-│   └── modeling.py             # Обучение и оценка моделей
+│   ├── preprocessing.py        # Предобработка данных для скачанного датасета
+│   └── parser.py               # Готовый парсер с API hh.ru 
 ├── tests
 │   └── test.py                 # Тесты пайплайна
 ├── requirements.txt
@@ -103,15 +100,25 @@ python scripts/run_script.py m --raw-file data/raw/vacancies.csv --sources hh --
 
 ### 2) Парсинг вакансий с hh.ru API
 
+Перед парсингом необходимо создать файл .env и закинуть в него HH_CLIENT_ID и HH_CLIENT_SECRET. Которые можно получить после регистрации и одобрения заявки на приложение со стороны API HH.ru (https://dev.hh.ru/admin)
+
 ```bash
-python scripts/run_script.py parse --user-agent "YourName/1.0 (email@example.com)"
+python scripts/run_script.py parse --user-agent "YourProjectName/1.0 (email@example.com)"
 ```
 
 Дополнительно можно задать:
-- `--area` - регион (`113` = Россия);
-- `--per-category` - лимит вакансий на категорию;
-- `--all-salaries` - собирать не только вакансии с указанной зарплатой;
-- `--raw-dir` - куда сохранять сырые JSON.
+- `--area` - регион (`113` = Россия)
+- `--per-category` - лимит вакансий на категорию
+- `--all-salaries` - собирать не только вакансии с указанной зарплатой
+- `--raw-dir` - куда сохранять сырые JSON
+
+## Запуск через Docker
+
+```bash
+docker compose build
+docker compose run --rm ml pytest          # тесты
+docker compose up jupyter                  # Jupyter Lab на :8888
+```
 
 ## Тесты и проверка кода
 
@@ -127,16 +134,15 @@ ruff check src/ --line-length 120
 - Крупные data-файлы исключены из git через `.gitignore`
 
 ## Результаты
-Здесь коротко выпишите результаты.
-| Модель   | MAE  | RMSE  |  R2  | Примечание |
-|----------|------|-------|------|------------|
-| Baseline | 26765.24 | 66303.87 | 0.38 |     |
-| Лучшая модель | — | — |  |  |
 
+### Baseline (на test)
+| Модель                  | MAE, руб | RMSE, руб | R2    |
+|-------------------------|----------|-----------|-------|
+| DummyRegressor (median) | 43035.17 | 85793.23  | -0.05 |
+| Ridge (α=1.0)           | 26765.24 | 66303.87  | 0.375 |
 
-Текущие результаты и эксперименты отражены в ноутбуках:
-- `notebooks/01_eda.ipynb`
-- `notebooks/02_baseline.ipynb`
+> Ridge даёт ошибку ≈27 тыс. ₽, что в ~1.6 раза лучше тривиального бейзлайна
+> Подробнее в `notebooks/02_baseline.ipynb` и `notebooks/03_experiments.ipynb`
 
 ## Отчёт
 Финальный отчёт: [`report/report.md`](report/report.md)

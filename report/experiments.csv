@@ -1,8 +1,6 @@
 model,fit_sec,train_MAE,val_MAE,val_RMSE,val_R2,notes
-Ridge (baseline check),1.1,14886.0,24640.0,42832.0,0.58,"Ridge на тех же фичах, что и в CP1... Нужен для сверки"
-LinearSVR + GridSearchCV,26.1,18219.0,24844.0,45364.0,0.529,
-CatBoost (native),131.9,15956.0,25708.0,47143.0,0.491,"категории и тексты нативно, MAE loss, Bayesian bootstrap, early stopping на val"
-RandomForest + RandomizedCV,326.4,12594.0,26733.0,48050.0,0.471,"5 итераций × 3 фолда, scoring=neg_MAE на log-шкале"
-RandomForest + RandomizedCV,93.3,10496.0,26775.0,48047.0,0.471,"5 итераций на 3 фолда, scoring=neg_MAE на log-шкале"
-RandomForest + RandomizedCV,91.6,16332.0,28256.0,50555.0,0.415,Использовался отдельный препроцессор с урезанным tf-idf
-Ridge + TruncatedSVD(200),2.6,27790.0,28796.0,50665.0,0.412,
+Ridge (new data),1.1,14886.0,24640.0,42832.0,0.58,"Ridge на тех же фичах, что и в CP1... Нужен для сверки"
+LinearSVR + GridSearchCV,26.3,18219.0,24844.0,45364.0,0.529,
+CatBoost (native),133.9,15956.0,25708.0,47143.0,0.491,"категории и тексты нативно, MAE loss, Bayesian bootstrap, early stopping на val"
+RandomForest + RandomizedCV,97.9,10496.0,26775.0,48047.0,0.471,"5 итераций на 3 фолда, scoring=neg_MAE на log-шкале"
+Ridge + TruncatedSVD(200),5.3,25189.0,26799.0,47447.0,0.484,
