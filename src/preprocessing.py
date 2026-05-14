@@ -21,7 +21,6 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-# Курсы примерные. На CP2 заменить на исторические курсы ЦБ.
 CURRENCY_TO_RUB = {
     "RUR": 1.0,
     "RUB": 1.0,

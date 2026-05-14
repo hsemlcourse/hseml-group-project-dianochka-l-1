@@ -1,5 +1,5 @@
 {
-  "model_name": "Ridge (new data)",
+  "model_name": "LightGBM (Optuna)",
   "seed": 42,
   "target": "salary_mid_rub",
   "target_transform": "log1p / expm1",
@@ -21,18 +21,18 @@
     ]
   },
   "split": {
-    "train": 10877,
-    "val": 2331,
-    "test": 2331
+    "train": 10748,
+    "val": 2303,
+    "test": 2304
   },
   "val_metrics": {
-    "MAE": 24640.101,
-    "RMSE": 42831.576,
-    "R2": 0.58
+    "MAE": 21855.356,
+    "RMSE": 33452.127,
+    "R2": 0.582
   },
   "test_metrics": {
-    "MAE": 26765.239,
-    "RMSE": 66303.871,
-    "R2": 0.375
+    "MAE": 21785.163,
+    "RMSE": 32497.181,
+    "R2": 0.582
   }
 }

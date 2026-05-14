@@ -9,7 +9,7 @@ services:
       - ./notebooks:/app/notebooks
     environment:
       - PYTHONPATH=/app
-      - HH_USER_AGENT=${HH_USER_AGENT:-StudentProject/1.0 (your_email@example.com)}
+      - HH_USER_AGENT=${HH_USER_AGENT:-NameProject/1.0 (your_email@example.com)}
     command: pytest -q
 
   jupyter:
