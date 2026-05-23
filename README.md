@@ -174,6 +174,32 @@ flake8 src/ --max-line-length 120
 Полное сравнение моделей, обсуждение TruncatedSVD, SpectralClustering и
 обоснование выбора — в разделе «14. Выводы» в `03_experiments.ipynb`
 
+## Запуск интерфейса (деплой модели)
+
+Для работы интерфейса необходим файл `models/final_model.joblib`
+(создаётся после прохождения `notebooks/03_experiments.ipynb`).
+
+Добавьте в `.env` переменные для hh.ru API:
+```
+HH_CLIENT_ID=...
+HH_CLIENT_SECRET=...
+HH_USER_AGENT=YourProjectName/1.0 (email@example.com)
+```
+
+Запуск:
+```bash
+docker compose up api streamlit
+```
+
+- **Streamlit UI** → http://localhost:8501
+- **FastAPI (Swagger)** → http://localhost:8080/docs
+
+Интерфейс поддерживает два режима:
+- **Ручной ввод** — заполните параметры вакансии в форме и получите предсказание зарплаты
+- **Поиск на hh.ru** — вставьте ссылку на вакансию (`https://hh.ru/vacancy/...`) или введите поисковый запрос, выберите вакансию из списка и запустите предсказание
+
+Ссылка на демонстрацию деплоя: https://disk.yandex.ru/d/sN59VO-5z5OMAw
+
 ## Отчёт
 Полноценный отчёт в формате `report/report.md` будет добавлен на этапе CP3.
 Промежуточные артефакты экспериментов уже доступны в `report/experiments.csv`
