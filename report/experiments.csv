@@ -1,0 +1,10 @@
+model,fit_sec,train_MAE,val_MAE,val_RMSE,val_R2,notes
+LightGBM (Optuna),184.5,7682.0,21855.0,33452.0,0.582,"Optuna, 20 trials, CV MAE=22498.9161"
+LightGBM (Optuna),182.2,7682.0,21855.0,33452.0,0.582,"Optuna, 20 trials, CV MAE=22498.9161"
+LightGBM,28.1,7112.0,22021.0,33068.0,0.592,"Градиентный бустинг по умолчанию, без поиска"
+Ridge (new data),1.1,13614.0,22190.0,32496.0,0.606,"Ridge на тех же фичах, что и в CP1... Нужен для сверки"
+LightGBM + SpectralCluster feature,108.6,9685.0,22206.0,33801.0,0.573,LightGBM с objective=L1 на расширенном пайплайне со spectral-фичей...num_leaves=63 — стандартный выбор для leaf-wise бустинга
+CatBoost (native),438.5,12950.0,22474.0,33972.0,0.569,"категории и тексты нативно, MAE loss, Bayesian bootstrap, early stopping на val"
+CatBoost + SpectralCluster feature,296.9,13652.0,22756.0,34417.0,0.558,SpectralClustering поверх TF-IDF(name)+TruncatedSVD на train На val/test метки получаются через ближайший центроид в SVD-пространстве — корректный inductive-extensionкак категориальная фича к остальному пайплайну
+Ridge + TruncatedSVD(200),5.5,23117.0,24046.0,35044.0,0.541,
+RandomForest + RandomizedCV,92.2,9456.0,24382.0,36324.0,0.507,"5 итераций на 3 фолда, scoring=neg_MAE на log-шкале"

@@ -6,32 +6,24 @@
 **Группа:** БИВ 238
 
 ## Оглавление
-
 1. [Описание задачи](#описание-задачи)
 2. [Структура репозитория](#структура-репозитория)
-3. [Запуски](#быстрый-старт)
-4. [Данные](#данные)
-5. [Результаты](#результаты)
-7. [Отчёт](#отчёт)
+3. [Быстрый старт](#быстрый-старт)
+4. [Запуск пайплайна](#запуск-пайплайна)
+5. [Запуск через Docker](#запуск-через-docker)
+6. [Тесты и линтер](#тесты-и-линтер)
+7. [Данные](#данные)
+8. [Результаты](#результаты)
+9. [Отчёт](#отчёт)
 
 
 ## Описание задачи
-Проект посвящен задаче регрессии... прогнозу уровня зарплаты по данным вакансий.
-В репозитории реализованы:
-- парсер вакансий через API hh.ru (`src/parser.py`);
-- два пайплайна предобработки:
-  - для JSON-данных из API (`src/preprocessing.py`);
-  - для готового CSV-датасета (`src/preprocessing_data.py`);
-- ноутбуки с EDA и baseline-моделью (`notebooks/01_eda.ipynb`, `notebooks/02_baseline.ipynb`);
-- базовые тесты на этапы предобработки (`tests/test.py`).
 
-Для этапа CP1 стоит посмотреть ноутбуки 01_eda и 02_baseline
+Проект посвящён задаче регрессии — предсказание уровня зарплаты по описанию вакансии.
 
-**Задача:** Регрессия
-
-**Датасет:** Парсинг HH.ru
-Но заявку на создание проекта и получение лично токена HH.ru не успел рассмотреть к дедлайну этапа CP1, поэтому в качестве датасета пока использовались даннные с диска: https://drive.google.com/file/d/1DSojrM7FSwJPQWjMa93KFg2Necy89-CK/view?usp=sharing
-(К следующему этапу датасет будет дополнен фрагментом, собранным мной самостоятельно)
+**Задача:** регрессия
+**Датасет:** парсинг hh.ru (API) или готовый CSV-датасет
+**Таргет:** `salary_mid_rub` (средняя зарплата в рублях/мес, net)
 
 **Целевая метрика:** MAE
 Выбраны и вспомогательные метрики для лучшего понимания ситуации: RMSE и R2
@@ -39,27 +31,39 @@
 **RMSE** ... диагностика поведения на высоких зарплатах + стандарт
 **R2** ... удобный безразмерный показатель для сравнения моделей
 
+В репозитории реализованы:
+- парсер вакансий через API hh.ru (`src/parser.py`);
+- предобработка JSON-данных из API (`src/preprocessing.py`);
+- ноутбуки: EDA (`notebooks/01_eda.ipynb`), baseline (`notebooks/02_baseline.ipynb`),
+  эксперименты (`notebooks/03_experiments.ipynb`);
+- тесты пайплайна предобработки (`tests/test.py`);
+- единая точка входа `scripts/run_script.py`;
+- Docker-сборка (`Dockerfile` + `docker-compose.yml`).
+
 ## Структура репозитория
+
 ```
 .
 ├── data
-│   ├── processed               # Очищенные и обработанные данные
-│   └── raw                     # Исходные файлы
-├── models                      # Сохранённые модели 
+│   ├── processed/              # vacancies.parquet, vacancies_clean.parquet
+│   └── raw/                    # сырой JSON / CSV
+├── models/                     # сохранённые модели и метрики (.joblib, .json)
 ├── notebooks
-│   ├── 01_eda.ipynb            # EDA
-│   ├── 02_baseline.ipynb       # Baseline-модель
-│   └── 03_experiments.ipynb    # Эксперименты и ablation study
-├── presentation                # Презентация для защиты
+│   ├── 01_eda.ipynb            # EDA, очистка выбросов, train/val/test split
+│   ├── 02_baseline.ipynb       # Baseline (Dummy + LinearRegression)
+│   └── 03_experiments.ipynb    # Эксперименты, финальная модель, выводы
 ├── report
-│   ├── images                  # Изображения для отчёта
-│   └── report.md               # Финальный отчёт
+│   ├── images/                 # графики для отчёта (создаются ноутбуками)
+│   └── experiments.csv         # таблица экспериментов
 ├── src
-│   ├── preprocessing.py        # Предобработка данных для датасета с API hh.ru
-|   ├── preprocessing_data.py   # Предобработка данных для скачанного датасета
-│   └── modeling.py             # Обучение и оценка моделей
+│   ├── parser.py               # парсер hh.ru API
+│   └── preprocessing.py        # JSON - DataFrame - parquet
 ├── tests
-│   └── test.py                 # Тесты пайплайна
+│   └── test.py                 # pytest-тесты предобработки
+├── scripts
+│   └── run_script.py           # CLI parse | process
+├── Dockerfile
+├── docker-compose.yml
 ├── requirements.txt
 └── README.md
 ```
@@ -82,63 +86,96 @@ pip install -r requirements.txt
 
 ## Запуск пайплайна
 
-### 1) Предобработка готового CSV-датасета
+### Вариант A. Использовать готовый CSV-датасет
+Скачать готовый `vacancies.parquet` по ссылке и положить в `data/processed/`:
+[Google Drive](https://drive.google.com/file/d/11NMJcb2o3Og7kanMeWPD7k1rPlPmsMp2/view?usp=sharing)
 
-По умолчанию скрипт ожидает файл `data/raw/vacancies.csv`, фильтрует данные и сохраняет parquet в `data/processed/vacancies.parquet`.
+Далее открыть `notebooks/01_eda.ipynb` — он построит `vacancies_clean.parquet`,
+от которого зависят `02_baseline.ipynb` и `03_experiments.ipynb`.
+
+### Вариант B. Парсинг с hh.ru
+
+1. Зарегистрировать приложение на https://dev.hh.ru/admin и получить
+   `HH_CLIENT_ID` / `HH_CLIENT_SECRET`, положить их в `.env`:
+   ```
+   HH_CLIENT_ID=...
+   HH_CLIENT_SECRET=...
+   ```
+
+2. Запустить парсер:
+   ```bash
+   python scripts/run_script.py parse \
+       --user-agent "YourProjectName/1.0 (email@example.com)"
+   ```
+   Дополнительные параметры:
+   - `--area` — регион (по умолчанию `113` = Россия)
+   - `--per-category` — лимит вакансий на категорию (default 500)
+   - `--all-salaries` — собирать вакансии и без указанной зарплаты
+   - `--raw-dir` — куда сохранять сырой JSON
+
+3. Запустить обработку JSON → parquet:
+   ```bash
+   python scripts/run_script.py process
+   ```
+   Параметры:
+   - `--raw-file` — путь к JSON парсера (default `data/raw/vacancies_all.json`)
+   - `--processed-dir` — куда положить parquet (default `data/processed/`)
+
+После шагов A или B пройти ноутбуки в порядке `01 - 02 - 03`.
+
+## Запуск через Docker
 
 ```bash
-python scripts/run_script.py m
+docker compose build
+docker compose run --rm ml          # тесты
+docker compose up jupyter           # Jupyter Lab на http://localhost:8888
 ```
-
-Полезные аргументы:
-- `--raw-file` - путь к исходному CSV;
-- `--processed-dir` - директория для результата;
-- `--sources` - фильтр по `data_source` (по умолчанию `hh`);
-- `--countries` - фильтр по `country_name` (по умолчанию `Россия`);
-- `--no-filtered-csv` - не сохранять промежуточный отфильтрованный CSV.
-
-Пример:
-
-```bash
-python scripts/run_script.py m --raw-file data/raw/vacancies.csv --sources hh --countries Россия
-```
-
-### 2) Парсинг вакансий с hh.ru API
-
-```bash
-python scripts/run_script.py parse --user-agent "YourName/1.0 (email@example.com)"
-```
-
-Дополнительно можно задать:
-- `--area` - регион (`113` = Россия);
-- `--per-category` - лимит вакансий на категорию;
-- `--all-salaries` - собирать не только вакансии с указанной зарплатой;
-- `--raw-dir` - куда сохранять сырые JSON.
+Данные и модели подключены через volumes, поэтому изменения в `./data` и
+`./models` хоста сразу видны в контейнере...
 
 ## Тесты и проверка кода
 
 ```bash
 pytest
-ruff check src/ --line-length 120
+flake8 src/ --max-line-length 120
 ```
 
 ## Данные
 
-- `data/raw/` — исходные файлы
-- `data/processed/` — предобработанные данные
+- `data/raw/` — сырые JSON от парсера (батчи `vacancies_batch_*.json` +
+  склейка `vacancies_all.json`)
+- `data/processed/vacancies.parquet` — результат `preprocessing.py`
+  (плоский DataFrame, отсечены явные выбросы по зарплате)
+- `data/processed/vacancies_clean.parquet` — результат `01_eda.ipynb`
+  (доп.очистка: drop leakage-колонок и константных полей, фильтр по 3σ
+  на таргет)
 - Крупные data-файлы исключены из git через `.gitignore`
 
 ## Результаты
-Здесь коротко выпишите результаты.
-| Модель | [Метрика 1] | [Метрика 2] | Примечание |
-|--------|-------------|-------------|------------|
-| Baseline | — | — | |
-| Лучшая модель | — | — | |
 
+### Baseline на test (`notebooks/02_baseline.ipynb`)
 
-Текущие результаты и эксперименты отражены в ноутбуках:
-- `notebooks/01_eda.ipynb`
-- `notebooks/02_baseline.ipynb`
+| Модель                  | MAE, ₽   | RMSE, ₽   | R²    |
+|-------------------------|----------|-----------|-------|
+| DummyRegressor (median) | 43 035   | 85 793    | −0.05 |
+| LinearRegression        | 125 740  | 315 852   | −13.18 |
+
+> LinearRegression «из коробки» на примерно 22k разреженных tf-idf фичах при 10k train
+> предсказуемо переобучается — это и есть наш «честный» baseline.
+> Регуляризация (Ridge) рассматривается уже в экспериментах.
+
+### Финальная модель на test (`notebooks/03_experiments.ipynb`)
+
+| Модель                       | MAE, ₽  | RMSE, ₽ | R²    |
+|------------------------------|---------|---------|-------|
+| **LightGBM (Optuna, 20 tr.)**| **21 785** | **32 497** | **0.582** |
+
+Финальная модель в примерно 2 раза точнее тривиального бейзлайна.
+Полное сравнение моделей, обсуждение TruncatedSVD, SpectralClustering и
+обоснование выбора — в разделе «14. Выводы» в `03_experiments.ipynb`
 
 ## Отчёт
+Полноценный отчёт в формате `report/report.md` будет добавлен на этапе CP3.
+Промежуточные артефакты экспериментов уже доступны в `report/experiments.csv`
+и `report/images/`.
 Финальный отчёт: [`report/report.md`](report/report.md)

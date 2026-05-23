@@ -1,0 +1,38 @@
+{
+  "model_name": "LightGBM (Optuna)",
+  "seed": 42,
+  "target": "salary_mid_rub",
+  "target_transform": "log1p / expm1",
+  "feature_groups": {
+    "num_cols": [
+      "key_skills_count"
+    ],
+    "cat_cols": [
+      "area_id",
+      "area_name",
+      "employer_name",
+      "employer_id",
+      "experience",
+      "experience_name"
+    ],
+    "text_col": [
+      "name",
+      "description"
+    ]
+  },
+  "split": {
+    "train": 10748,
+    "val": 2303,
+    "test": 2304
+  },
+  "val_metrics": {
+    "MAE": 21855.356,
+    "RMSE": 33452.127,
+    "R2": 0.582
+  },
+  "test_metrics": {
+    "MAE": 21785.163,
+    "RMSE": 32497.181,
+    "R2": 0.582
+  }
+}

@@ -1,6 +1,7 @@
 """
 Парсер вакансий с hh.ru через официальный API
-Документация API: https://api.hh.ru/openapi/redoc
+
+Документация: https://api.hh.ru/openapi/redoc
 Справочник ролей: https://api.hh.ru/professional_roles
 """
 
@@ -12,16 +13,25 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterator
+
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+# Сетевые исключения, на которые имеет смысл повторить запрос вручную
+# (Retry из urllib3 их не покрывает — он работает только для HTTP-ответов).
+NETWORK_ERRORS = (
+    requests.exceptions.ConnectionError,
+    requests.exceptions.Timeout,
+    requests.exceptions.ChunkedEncodingError,
+)
 
 logger = logging.getLogger(__name__)
 
 HH_API_BASE = "https://api.hh.ru"
 HH_VACANCIES_ENDPOINT = f"{HH_API_BASE}/vacancies"
 HH_ROLES_ENDPOINT = f"{HH_API_BASE}/professional_roles"
+HH_TOKEN_ENDPOINT = f"{HH_API_BASE}/token"
 
 # Лимиты API
 MAX_PER_PAGE = 100
@@ -29,7 +39,7 @@ MAX_PAGES = 20
 MAX_RESULTS_PER_QUERY = MAX_PER_PAGE * MAX_PAGES  # 2000
 
 REQUEST_TIMEOUT = 15
-REQUEST_DELAY = 0.8  # пауза между запросами
+REQUEST_DELAY = 0.8  # пауза между запросами, чтобы не упереться в rate limit
 
 TARGET_CATEGORIES = [
     "Информационные технологии",
@@ -63,18 +73,41 @@ class ParserConfig:
 
     Attributes:
         user_agent: обязательный заголовок с контактом разработчика
-        area: ID региона hh.ru (113 = Россия, 1 = Москва, 2 = СПб)
-        per_category_limit: сколько вакансий собираем из каждой категории
+        access_token: OAuth-токен hh.ru. Если None — запросы идут анонимно
+        area: ID региона (113 = Россия, 1 = Москва, 2 = СПб)
+        per_category_limit: сколько вакансий брать из каждой категории
         only_with_salary: брать только вакансии с указанной зарплатой
-            True оставляет больше полезных строк для задачи регрессии
         raw_dir: куда сохраняем сырые JSON-ответы
     """
 
     user_agent: str
+    access_token: str | None = None
     area: int = 113
     per_category_limit: int = 500
     only_with_salary: bool = True
     raw_dir: Path = field(default_factory=lambda: Path("data/raw"))
+
+
+def fetch_access_token(client_id: str, client_secret: str, user_agent: str) -> str:
+    """Получает application access_token по client_credentials grant
+    Подходит для чтения публичных вакансий без интерактивной авторизации
+    """
+    response = requests.post(
+        HH_TOKEN_ENDPOINT,
+        data={
+            "grant_type": "client_credentials",
+            "client_id": client_id,
+            "client_secret": client_secret,
+        },
+        headers={"User-Agent": user_agent},
+        timeout=REQUEST_TIMEOUT,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    token = payload.get("access_token")
+    if not token:
+        raise RuntimeError(f"hh.ru не вернул access_token: {payload}")
+    return token
 
 
 def _build_session(user_agent: str, access_token: str | None = None) -> requests.Session:
@@ -101,20 +134,11 @@ def _build_session(user_agent: str, access_token: str | None = None) -> requests
     return session
 
 
-def _fetch_page(
-    session: requests.Session,
-    params: dict[str, Any],
-) -> dict[str, Any]:
-    response = session.get(
-        HH_VACANCIES_ENDPOINT,
-        params=params,
-        timeout=REQUEST_TIMEOUT,
-    )
+def _fetch_page(session: requests.Session, params: dict[str, Any]) -> dict[str, Any]:
+    response = session.get(HH_VACANCIES_ENDPOINT, params=params, timeout=REQUEST_TIMEOUT)
     if response.status_code == 403:
-        logger.error(
-            "403 Forbidden от hh.ru... %s",
-            response.text[:500],
-        )
+        # Не печатаем заголовки целиком, чтобы случайно не светить токен в логах.
+        logger.error("403 Forbidden от hh.ru. Тело: %s", response.text[:500])
     response.raise_for_status()
     time.sleep(REQUEST_DELAY)
     return response.json()
@@ -123,9 +147,7 @@ def _fetch_page(
 def fetch_professional_roles(session: requests.Session) -> dict[str, list[str]]:
     """Загружает справочник профессиональных ролей hh.ru
     Returns:
-        Словарь {название_категории: [role_id, role_id, ...]}
-        Категория = крупная отрасль,
-        внутри неё — конкретные роли
+        {название_категории: [role_id, role_id, ...]}
     """
     response = session.get(HH_ROLES_ENDPOINT, timeout=REQUEST_TIMEOUT)
     response.raise_for_status()
@@ -145,15 +167,14 @@ def _iter_query(
     base_params: dict[str, Any],
     limit: int,
 ) -> Iterator[dict[str, Any]]:
+    """Итерируется по страницам выдачи, пока не наберёт limit или не кончатся страницы"""
     collected = 0
-    first_page = _fetch_page(
-        session, {**base_params, "page": 0, "per_page": MAX_PER_PAGE}
-    )
+    first_page = _fetch_page(session, {**base_params, "page": 0, "per_page": MAX_PER_PAGE})
     total_found = first_page.get("found", 0)
     total_pages = min(first_page.get("pages", 0), MAX_PAGES)
 
     logger.info(
-        "Запрос %s найдено %d вакансий, страниц для обхода %d (лимит=%d)",
+        "Запрос %s: найдено %d вакансий, страниц %d (лимит=%d)",
         base_params, total_found, total_pages, limit,
     )
 
@@ -166,9 +187,7 @@ def _iter_query(
     for page in range(1, total_pages):
         if collected >= limit:
             return
-        data = _fetch_page(
-            session, {**base_params, "page": page, "per_page": MAX_PER_PAGE}
-        )
+        data = _fetch_page(session, {**base_params, "page": page, "per_page": MAX_PER_PAGE})
         for item in data.get("items", []):
             if collected >= limit:
                 return
@@ -176,8 +195,10 @@ def _iter_query(
             collected += 1
 
 
-def fetch_balanced_vacancy_ids(config: ParserConfig) -> list[str]:
-    session = _build_session(config.user_agent, config.access_token)
+def fetch_balanced_vacancy_ids(
+    session: requests.Session, config: ParserConfig
+) -> list[str]:
+    """Собирает уникальные ID вакансий, балансируя по крупным категориям hh.ru"""
     all_categories = fetch_professional_roles(session)
 
     ids: list[str] = []
@@ -205,18 +226,16 @@ def fetch_balanced_vacancy_ids(config: ParserConfig) -> list[str]:
                     category_ids.append(vacancy_id)
             consecutive_failures = 0
         except requests.exceptions.RequestException as exc:
-            logger.error("Категория %r упала %s", category_name, exc)
+            logger.error("Категория %r упала: %s", category_name, exc)
             consecutive_failures += 1
             if consecutive_failures >= 3:
-                logger.error(
-                    "Остановка парсинга..."
-                )
+                logger.error("3 категории подряд упали — останавливаю парсинг")
                 break
             continue
 
         ids.extend(category_ids)
         logger.info(
-            "Категория %r собрано %d ID (всего уникальных %d)",
+            "Категория %r: собрано %d ID (всего уникальных %d)",
             category_name, len(category_ids), len(ids),
         )
 
@@ -224,71 +243,157 @@ def fetch_balanced_vacancy_ids(config: ParserConfig) -> list[str]:
 
 
 def fetch_vacancy_details(
+    session: requests.Session,
     vacancy_ids: list[str],
-    config: ParserConfig,
+    raw_dir: Path,
 ) -> list[dict[str, Any]]:
-    session = _build_session(config.user_agent, config.access_token)
-    config.raw_dir.mkdir(parents=True, exist_ok=True)
+    """Качает детальные карточки вакансий и пишет батчи на диск.
+    Поддерживает докачку: если в raw_dir уже есть батчи с прошлого прогона,
+    их вакансии загружаются и пропускаются при повторном скачивании.
+    На сетевых ошибках делает несколько повторов с экспоненциальной паузой,
+    чтобы пережить кратковременные обрывы Wi-Fi/VPN.
+    """
+    raw_dir.mkdir(parents=True, exist_ok=True)
 
-    vacancies: list[dict[str, Any]] = []
+    # Подгружаем уже скачанное из существующих батчей
+    already_done = _load_existing_batches(raw_dir)
+    vacancies: list[dict[str, Any]] = list(already_done.values())
+    done_ids: set[str] = set(already_done.keys())
+    if done_ids:
+        logger.info(
+            "Найдено %d уже скачанных вакансий в существующих батчах — пропускаю их",
+            len(done_ids),
+        )
+
+    # Стартовый индекс батча — следующий после последнего существующего
+    batch_idx = _next_batch_index(raw_dir)
     batch: list[dict[str, Any]] = []
     batch_size = 500
-    batch_idx = 0
 
-    for i, vacancy_id in enumerate(vacancy_ids, start=1):
+    todo = [vid for vid in vacancy_ids if vid not in done_ids]
+    logger.info("К скачиванию: %d вакансий из %d", len(todo), len(vacancy_ids))
+
+    for i, vacancy_id in enumerate(todo, start=1):
+        data = _fetch_vacancy_with_retry(session, vacancy_id)
+        if data is not None:
+            vacancies.append(data)
+            batch.append(data)
+
+        if len(batch) >= batch_size:
+            _save_batch(batch, raw_dir, batch_idx)
+            batch = []
+            batch_idx += 1
+
+        if i % 200 == 0:
+            logger.info("Скачано %d / %d новых вакансий", i, len(todo))
+
+    if batch:
+        _save_batch(batch, raw_dir, batch_idx)
+
+    return vacancies
+
+
+def _fetch_vacancy_with_retry(
+    session: requests.Session,
+    vacancy_id: str,
+    max_attempts: int = 5,
+) -> dict[str, Any] | None:
+    """Качает одну карточку с ретраями на сетевые ошибки
+    Возвращает None, если вакансия 404 или все попытки исчерпаны.
+    """
+    for attempt in range(1, max_attempts + 1):
         try:
             response = session.get(
                 f"{HH_VACANCIES_ENDPOINT}/{vacancy_id}",
                 timeout=REQUEST_TIMEOUT,
             )
             if response.status_code == 404:
-                logger.debug("Вакансия %s не найдена", vacancy_id)
-                continue
+                logger.debug("Вакансия %s не найдена (404)", vacancy_id)
+                return None
             response.raise_for_status()
-            data = response.json()
-            vacancies.append(data)
-            batch.append(data)
-        except requests.HTTPError as exc:
-            logger.warning("Не удалось скачать вакансию %s %s", vacancy_id, exc)
-            continue
-        finally:
             time.sleep(REQUEST_DELAY)
+            return response.json()
+        except NETWORK_ERRORS as exc:
+            wait = min(60, 2 ** attempt)
+            logger.warning(
+                "Сетевая ошибка на вакансии %s (попытка %d/%d): %s. Жду %d сек",
+                vacancy_id, attempt, max_attempts, exc, wait,
+            )
+            time.sleep(wait)
+        except requests.HTTPError as exc:
+            logger.warning("HTTP ошибка на вакансии %s: %s", vacancy_id, exc)
+            time.sleep(REQUEST_DELAY)
+            return None
 
-        if len(batch) >= batch_size:
-            _save_batch(batch, config.raw_dir, batch_idx)
-            batch = []
-            batch_idx += 1
+    logger.error("Не удалось скачать вакансию %s после %d попыток", vacancy_id, max_attempts)
+    return None
 
-        if i % 200 == 0:
-            logger.info("Скачано %d / %d вакансий", i, len(vacancy_ids))
 
-    if batch:
-        _save_batch(batch, config.raw_dir, batch_idx)
+def _load_existing_batches(raw_dir: Path) -> dict[str, dict[str, Any]]:
+    """Читает все vacancies_batch_*.json и возвращает {id: vacancy}"""
+    result: dict[str, dict[str, Any]] = {}
+    if not raw_dir.exists():
+        return result
+    for path in sorted(raw_dir.glob("vacancies_batch_*.json")):
+        try:
+            with path.open("r", encoding="utf-8") as f:
+                items = json.load(f)
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.warning("Битый батч %s, пропускаю: %s", path, exc)
+            continue
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            vid = item.get("id")
+            if vid:
+                result[str(vid)] = item
+    return result
 
-    return vacancies
+
+def _next_batch_index(raw_dir: Path) -> int:
+    """Возвращает номер для следующего батча"""
+    if not raw_dir.exists():
+        return 0
+    existing = sorted(raw_dir.glob("vacancies_batch_*.json"))
+    if not existing:
+        return 0
+    last = existing[-1].stem  # vacancies_batch_0007
+    try:
+        return int(last.rsplit("_", 1)[-1]) + 1
+    except ValueError:
+        return len(existing)
 
 
 def _save_batch(batch: list[dict[str, Any]], raw_dir: Path, idx: int) -> None:
     path = raw_dir / f"vacancies_batch_{idx:04d}.json"
     with path.open("w", encoding="utf-8") as f:
         json.dump(batch, f, ensure_ascii=False, indent=2)
-    logger.info("Сохранён батч %d %d вакансий %s", idx, len(batch), path)
+    logger.info("Сохранён батч %d: %d вакансий → %s", idx, len(batch), path)
 
 
 def run_parser(config: ParserConfig) -> Path:
+    """Полный цикл: собрать ID → скачать детали → сохранить vacancies_all.json"""
     logger.info(
-        "Регион=%s, лимит на категорию=%d",
-        config.area, config.per_category_limit,
+        "Старт парсинга. Регион=%s, лимит на категорию=%d, only_with_salary=%s",
+        config.area, config.per_category_limit, config.only_with_salary,
     )
-    ids = fetch_balanced_vacancy_ids(config)
-    logger.info("Всего уникальных ID %d", len(ids))
 
-    vacancies = fetch_vacancy_details(ids, config)
-    logger.info("Скачано полных карточек %d", len(vacancies))
+    session = _build_session(config.user_agent, config.access_token)
+
+    ids = fetch_balanced_vacancy_ids(session, config)
+    logger.info("Всего уникальных ID: %d", len(ids))
+    if not ids:
+        raise RuntimeError("Не собрано ни одного ID вакансии")
+
+    vacancies = fetch_vacancy_details(session, ids, config.raw_dir)
+    logger.info("Всего карточек (с учётом ранее скачанных): %d", len(vacancies))
+
+    if not vacancies:
+        raise RuntimeError("Не скачано ни одной карточки вакансии")
 
     output_path = config.raw_dir / "vacancies_all.json"
     with output_path.open("w", encoding="utf-8") as f:
         json.dump(vacancies, f, ensure_ascii=False, indent=2)
-    logger.info("Итог сохранён в %s", output_path)
+    logger.info("Итог сохранён в %s (%d вакансий)", output_path, len(vacancies))
 
     return output_path

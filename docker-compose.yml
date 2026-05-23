@@ -1,0 +1,22 @@
+services:
+  ml:
+    build: .
+    image: hh-salary-ml:latest
+    container_name: hh-salary-ml
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./notebooks:/app/notebooks
+    environment:
+      - PYTHONPATH=/app
+      - HH_USER_AGENT=${HH_USER_AGENT:-NameProject/1.0 (your_email@example.com)}
+    command: pytest -q
+
+  jupyter:
+    extends: ml
+    container_name: hh-salary-jupyter
+    ports:
+      - "8888:8888"
+    command: >
+      jupyter lab --ip=0.0.0.0 --port=8888 --no-browser
+      --NotebookApp.token='' --NotebookApp.password=''
