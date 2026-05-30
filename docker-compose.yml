@@ -1,22 +1,44 @@
 services:
-  ml:
-    build: .
-    image: hh-salary-ml:latest
-    container_name: hh-salary-ml
-    volumes:
-      - ./data:/app/data
-      - ./models:/app/models
-      - ./notebooks:/app/notebooks
-    environment:
-      - PYTHONPATH=/app
-      - HH_USER_AGENT=${HH_USER_AGENT:-NameProject/1.0 (your_email@example.com)}
-    command: pytest -q
 
-  jupyter:
-    extends: ml
-    container_name: hh-salary-jupyter
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: hh-salary-api:latest
+    container_name: hh-salary-api
     ports:
-      - "8888:8888"
-    command: >
-      jupyter lab --ip=0.0.0.0 --port=8888 --no-browser
-      --NotebookApp.token='' --NotebookApp.password=''
+      - "8080:8080"
+    volumes:
+      - ./models:/app/models:ro
+    environment:
+      - MODEL_PATH=/app/models/final_model.joblib
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    image: hh-salary-streamlit:latest
+    container_name: hh-salary-streamlit
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./src:/app/src:ro
+      - ./streamlit/streamlit_app.py:/app/streamlit_app.py:ro
+    environment:
+      - INFERENCE_URL=http://api:8080
+      - HH_CLIENT_ID=${HH_CLIENT_ID:-}
+      - HH_CLIENT_SECRET=${HH_CLIENT_SECRET:-}
+      - HH_ACCESS_TOKEN=${HH_ACCESS_TOKEN:-}
+      - HH_USER_AGENT=${HH_USER_AGENT}
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
